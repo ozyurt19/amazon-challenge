@@ -7,7 +7,7 @@ import keras
 import keras.backend as K
 import tensorflow as tf
 from keras.models import Model
-from tensorflow.keras.utils import to_categorical
+from keras.utils.np_utils import to_categorical
 from keras.callbacks import ModelCheckpoint
 from keras.losses import categorical_crossentropy
 from keras.layers import Input, Dense, Dropout, GRU
@@ -157,7 +157,7 @@ def create_model(args):
     drop2 = Dropout(0.25)(gru)
     predictions = Dense(args.train_n_items, activation='softmax')(drop2)
     model = Model(inputs=inputs, outputs=[predictions])
-    opt = tf.keras.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
+    opt = tf.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999)
     model.compile(loss=categorical_crossentropy, optimizer=opt)
     model.summary()
 
@@ -191,7 +191,8 @@ def get_metrics(model, args, train_generator_map, recall_k=20, mrr_k=20):
 
         pred = model.predict(input_oh, batch_size=args.batch_size)
 
-        for row_idx in range(feat.shape[0]):
+        # for row_idx in range(feat.shape[0]):
+        for row_idx in range(tf.shape(feat)[0]):
             pred_row = pred[row_idx]
             label_row = target_oh[row_idx]
 
@@ -233,6 +234,9 @@ def train_model(model, args):
 
                 target_oh = to_categorical(target, num_classes=loader.n_items)
 
+                print(type(input_oh), type(target_oh))
+                print(target_oh[np.isnan(target_oh.astype(float))])
+
                 tr_loss = model_to_train.train_on_batch(input_oh, target_oh)
 
                 pbar.set_description("Epoch {0}. Loss: {1:.5f}".format(epoch, tr_loss))
@@ -255,20 +259,26 @@ def train_model(model, args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Keras GRU4REC: session-based recommendations')
-    parser.add_argument('--resume', type=str, help='stored model path to continue training')
-    parser.add_argument('--train-path', type=str, default='../../processedData/rsc15_train_tr.txt')
+    parser.add_argument('--resume', type=str, help='stored model path to continue training', default=False)
+    parser.add_argument('--train-path', type=str, default='examp.csv')
     parser.add_argument('--eval-only', type=bool, default=False)
-    parser.add_argument('--dev-path', type=str, default='../../processedData/rsc15_train_valid.txt')
-    parser.add_argument('--test-path', type=str, default='../../processedData/rsc15_test.txt')
+    parser.add_argument('--dev-path', type=str, default='examp.csv')
+    parser.add_argument('--test-path', type=str, default='examp.csv')
     parser.add_argument('--batch-size', type=str, default=512)
-    parser.add_argument('--eval-all-epochs', type=bool, default=False)
-    parser.add_argument('--save-weights', type=bool, default=False)
+    parser.add_argument('--eval-all-epochs', type=bool, default=True)
+    parser.add_argument('--save-weights', type=bool, default=True)
     parser.add_argument('--epochs', type=int, default=10)
     args = parser.parse_args()
 
-    args.train_data = pd.read_csv(args.train_path, sep='\t', dtype={'ItemId': np.int64})
-    args.dev_data   = pd.read_csv(args.dev_path,   sep='\t', dtype={'ItemId': np.int64})
-    args.test_data  = pd.read_csv(args.test_path,  sep='\t', dtype={'ItemId': np.int64})
+    # args.train_data = pd.read_csv(args.train_path, sep='\t', dtype={'ItemId': np.int64})
+    # args.dev_data   = pd.read_csv(args.dev_path,   sep='\t', dtype={'ItemId': np.int64})
+    # args.test_data  = pd.read_csv(args.test_path,  sep='\t', dtype={'ItemId': np.int64})
+
+    args.train_data = pd.read_csv(args.train_path)
+    args.dev_data   = pd.read_csv(args.dev_path)
+    args.test_data  = pd.read_csv(args.test_path)
+
+    print(args.train_data.columns)
 
     args.train_n_items = len(args.train_data['ItemId'].unique()) + 1
 
