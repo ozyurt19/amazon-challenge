@@ -2,6 +2,8 @@ import argparse
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1' 
 
 import keras
 import keras.backend as K
@@ -152,11 +154,11 @@ def create_model(args):
     hidden_units = 100
     size = emb_size
 
-    inputs = Input(batch_shape=(args.batch_size, 1, args.train_n_items))
-    gru, gru_states = GRU(hidden_units, stateful=True, return_state=True, name="GRU")(inputs)
+    input = Input(batch_shape=(args.batch_size, 1, args.train_n_items))
+    gru, gru_states = GRU(hidden_units, stateful=True, return_state=True, name="GRU")(input)
     drop2 = Dropout(0.25)(gru)
     predictions = Dense(args.train_n_items, activation='softmax')(drop2)
-    model = Model(inputs=inputs, outputs=[predictions])
+    model = Model(inputs=input, outputs=[predictions])
     opt = tf.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999)
     model.compile(loss=categorical_crossentropy, optimizer=opt)
     model.summary()
@@ -234,8 +236,8 @@ def train_model(model, args):
 
                 target_oh = to_categorical(target, num_classes=loader.n_items)
 
-                print(type(input_oh), type(target_oh))
-                print(target_oh[np.isnan(target_oh.astype(float))])
+                # print(type(input_oh), type(target_oh))
+                # print(target_oh[np.isnan(target_oh.astype(float))])
 
                 tr_loss = model_to_train.train_on_batch(input_oh, target_oh)
 
@@ -260,14 +262,14 @@ def train_model(model, args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Keras GRU4REC: session-based recommendations')
     parser.add_argument('--resume', type=str, help='stored model path to continue training', default=False)
-    parser.add_argument('--train-path', type=str, default='examp.csv')
+    parser.add_argument('--train-path', type=str, default='train.csv')
     parser.add_argument('--eval-only', type=bool, default=False)
-    parser.add_argument('--dev-path', type=str, default='examp.csv')
-    parser.add_argument('--test-path', type=str, default='examp.csv')
+    parser.add_argument('--dev-path', type=str, default='dev.csv')
+    parser.add_argument('--test-path', type=str, default='test.csv')
     parser.add_argument('--batch-size', type=str, default=512)
     parser.add_argument('--eval-all-epochs', type=bool, default=True)
     parser.add_argument('--save-weights', type=bool, default=True)
-    parser.add_argument('--epochs', type=int, default=10)
+    parser.add_argument('--epochs', type=int, default=5)
     args = parser.parse_args()
 
     # args.train_data = pd.read_csv(args.train_path, sep='\t', dtype={'ItemId': np.int64})
@@ -278,7 +280,7 @@ if __name__ == '__main__':
     args.dev_data   = pd.read_csv(args.dev_path)
     args.test_data  = pd.read_csv(args.test_path)
 
-    print(args.train_data.columns)
+    # print(args.train_data.columns)
 
     args.train_n_items = len(args.train_data['ItemId'].unique()) + 1
 
